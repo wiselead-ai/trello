@@ -2,10 +2,13 @@ package trello
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/wiselead-ai/httpclient"
 )
 
 type TrelloCard struct {
@@ -15,30 +18,42 @@ type TrelloCard struct {
 }
 
 type TrelloAPI struct {
-	APIKey  string
-	Token   string
-	BaseURL string
+	httpCli *http.Client
+	apiKey  string
+	token   string
+	baseURL string
 }
 
-func NewTrelloAPI(apiKey, token string) *TrelloAPI {
+func NewTrelloAPI(httpCli *http.Client, apiKey, token string) *TrelloAPI {
 	return &TrelloAPI{
-		APIKey:  apiKey,
-		Token:   token,
-		BaseURL: "https://api.trello.com/1",
+		httpCli: httpCli,
+		apiKey:  apiKey,
+		token:   token,
+		baseURL: "https://api.trello.com/1",
 	}
 }
 
-func (t *TrelloAPI) CreateCard(card TrelloCard) error {
-	url := fmt.Sprintf("%s/cards?idList=%s&key=%s&token=%s", t.BaseURL, card.ListID, t.APIKey, t.Token)
-
+func (t *TrelloAPI) CreateCard(ctx context.Context, card TrelloCard) error {
 	payload, err := json.Marshal(card)
 	if err != nil {
 		return fmt.Errorf("error marshaling card data: %v", err)
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		fmt.Sprintf("%s/cards?idList=%s&key=%s&token=%s", t.baseURL, card.ListID, t.apiKey, t.token),
+		bytes.NewBuffer(payload),
+	)
 	if err != nil {
-		return fmt.Errorf("error making POST request: %v", err)
+		return fmt.Errorf("error creating POST request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpclient.DoWithRetry(t.httpCli, req)
+	if err != nil {
+		return fmt.Errorf("error performing POST request: %v", err)
 	}
 	defer resp.Body.Close()
 
