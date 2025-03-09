@@ -36,7 +36,7 @@ func NewTrelloAPI(httpCli *http.Client, apiKey, token string) *TrelloAPI {
 func (t *TrelloAPI) CreateCard(ctx context.Context, card TrelloCard) error {
 	payload, err := json.Marshal(card)
 	if err != nil {
-		return fmt.Errorf("error marshaling card data: %v", err)
+		return fmt.Errorf("error marshaling card data: %s", err)
 	}
 
 	req, err := http.NewRequestWithContext(
@@ -46,20 +46,20 @@ func (t *TrelloAPI) CreateCard(ctx context.Context, card TrelloCard) error {
 		bytes.NewBuffer(payload),
 	)
 	if err != nil {
-		return fmt.Errorf("error creating POST request: %v", err)
+		return fmt.Errorf("error creating POST request: %s", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := httpclient.DoWithRetry(t.httpCli, req)
 	if err != nil {
-		return fmt.Errorf("error performing POST request: %v", err)
+		return fmt.Errorf("error performing POST request: %s", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("API request failed with status '%d': %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
